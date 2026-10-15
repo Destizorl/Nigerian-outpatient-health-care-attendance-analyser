@@ -1,0 +1,42 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "User profile for hospital analyst or epidemiologist",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "description": "Firebase Auth UID" },
+        "email": { "type": "string", "format": "email", "description": "User email address" },
+        "displayName": { "type": "string", "maxLength": 100, "description": "User full name or medical title" },
+        "role": { "type": "string", "enum": ["Epidemiologist", "Public Health Analyst", "Hospital Medical Director", "Clinical Records Officer"], "description": "Professional health cadre" },
+        "facilityAffiliation": { "type": "string", "maxLength": 100, "description": "Hospital facility name or institution" },
+        "createdAt": { "type": "string", "description": "Account creation timestamp" }
+      },
+      "required": ["uid", "email", "createdAt"]
+    },
+    "UserAnalysisNote": {
+      "title": "UserAnalysisNote",
+      "description": "User-saved epidemiological deductions and clinical scenario findings",
+      "type": "object",
+      "properties": {
+        "noteId": { "type": "string", "description": "Unique identifier of the note" },
+        "userId": { "type": "string", "description": "Owner user UID" },
+        "scenarioId": { "type": "string", "description": "Associated scenario identifier" },
+        "scenarioTitle": { "type": "string", "maxLength": 200, "description": "Case study title" },
+        "content": { "type": "string", "maxLength": 5000, "description": "Analyst deduction text" },
+        "updatedAt": { "type": "string", "description": "Last edit timestamp" }
+      },
+      "required": ["noteId", "userId", "scenarioId", "content", "updatedAt"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "User",
+      "description": "Collection of user profile records indexed by auth UID"
+    },
+    "/user_notes/{noteId}": {
+      "schema": "UserAnalysisNote",
+      "description": "User analytical case study notes and policy brief deductions"
+    }
+  }
+}

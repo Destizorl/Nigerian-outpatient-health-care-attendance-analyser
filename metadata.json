@@ -1,0 +1,6 @@
+{
+  "name": "NaijaOPD Analytics - Nigerian Hospital Attendance & OODM Lab",
+  "description": "Interactive epidemiological analysis, data cleaning lab, and OODM design methodology for analyzing outpatient attendance patterns across Nigerian public hospitals.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
