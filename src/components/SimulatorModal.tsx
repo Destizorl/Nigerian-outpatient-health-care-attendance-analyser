@@ -163,6 +163,10 @@ export const SimulatorModal: React.FC<SimulatorModalProps> = ({
           waitTimeMinutes: waitTime,
           consultationDurationMinutes: Math.floor(12 + random() * 15),
           doctorCadre: random() > 0.5 ? 'Senior Registrar' : 'Medical Officer',
+          department: 'General Outpatient (GOPD)',
+          quarter: month <= 3 ? 'Q1' : month <= 6 ? 'Q2' : month <= 9 ? 'Q3' : 'Q4',
+          year: 2023,
+          isEligible: true,
           disposition: 'Discharged Home with Prescription',
           prescriptionGiven: true
         };

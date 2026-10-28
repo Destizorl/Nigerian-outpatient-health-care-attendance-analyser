@@ -376,6 +376,24 @@ function generateHospitalRecords() {
       const encounterId = `ENC-2023-${recordCounter.toString().padStart(4, '0')}`;
       const dateStr = `2023-${month.toString().padStart(2, '0')}-${day.toString().padStart(2, '0')}`;
 
+      // Department selection based on clinical specialty
+      let department: import('../types/hospital').DepartmentType = 'General Outpatient (GOPD)';
+      if (pat.age < 5) {
+        department = 'Pediatrics Outpatient (POPD)';
+      } else if (diagnosis.category === 'Maternal & Reproductive OPD') {
+        department = 'Obstetrics & Gynaecology (ANC/OPD)';
+      } else if (diagnosis.category === 'Cardiovascular & Hypertension') {
+        department = 'Cardiology & Hypertension Clinic';
+      } else if (diagnosis.category === 'Endocrine & Diabetes') {
+        department = 'Endocrine & Metabolic Clinic';
+      } else if (acuity === 'Emergency (Orange)') {
+        department = 'Accident & Emergency Triage';
+      } else if (diagnosis.category === 'Trauma & Road Injuries') {
+        department = 'General Surgery Clinic';
+      }
+
+      const quarter = month <= 3 ? 'Q1' : month <= 6 ? 'Q2' : month <= 9 ? 'Q3' : 'Q4';
+
       // Create Clean Record
       const cleanRecord: CleanOPDRecord = {
         encounterId,
@@ -384,9 +402,12 @@ function generateHospitalRecords() {
         facilityId: facility.id,
         facilityName: facility.name,
         zone: facility.zone,
+        department,
         date: dateStr,
         month,
         monthName: MONTH_NAMES[month - 1],
+        quarter,
+        year: 2023,
         dayOfWeek,
         timeOfArrival,
         season,
@@ -414,7 +435,8 @@ function generateHospitalRecords() {
         consultationDurationMinutes: consultDuration,
         doctorCadre: random() > 0.65 ? 'Senior Registrar' : (random() > 0.3 ? 'Medical Officer' : 'Consultant Physician'),
         disposition,
-        prescriptionGiven: disposition !== 'Left Against Medical Advice (LAMA)'
+        prescriptionGiven: disposition !== 'Left Against Medical Advice (LAMA)',
+        isEligible: true
       };
 
       cleanRecords.push(cleanRecord);
@@ -558,3 +580,236 @@ function generateHospitalRecords() {
 }
 
 export const INITIAL_DATA = generateHospitalRecords();
+
+export const INITIAL_PROVENANCE: import('../types/hospital').DatasetProvenance = {
+  datasetId: 'DS-NIG-2023-V1',
+  version: '1.2.0 (Verified Working Copy)',
+  title: 'Nigerian Public Tertiary Outpatient Attendance Registry 2023',
+  facilityScope: 'Multi-Center Tertiary Cohort (UCH Ibadan, LUTH Lagos, AKTH Kano, FMC Owerri, National Hospital Abuja)',
+  sourceDescription: 'Curated de-identified outpatient attendance records covering 12 months with seasonal and operational attributes',
+  fileType: 'SYNTHETIC',
+  sha256Checksum: 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855',
+  importedAt: '2026-10-15 08:30:00 UTC',
+  importedBy: 'Dr. D. Kalango (Lead Epidemiologist)',
+  totalRecordsCount: INITIAL_DATA.cleanRecords.length,
+  eligibleCount: INITIAL_DATA.cleanRecords.filter(r => r.isEligible).length,
+  excludedCount: INITIAL_DATA.cleanRecords.filter(r => !r.isEligible).length,
+  flaggedDuplicateCount: 6,
+  isSyntheticDemo: true,
+  dateRange: { start: '2023-01-02', end: '2023-12-28' }
+};
+
+export const INITIAL_FLAGGED_DUPLICATES: import('../types/hospital').DuplicateFlaggedItem[] = [
+  {
+    id: 'DUP-001',
+    primaryEncounterId: 'ENC-2023-0037',
+    suspectEncounterId: 'ENC-2023-0074',
+    hospitalCardNo: 'UCH/2023/10037',
+    patientNameOrAlias: 'Patient #1037',
+    datePrimary: '2023-01-16',
+    dateSuspect: '2023-01-16',
+    department: 'General Outpatient (GOPD)',
+    diagnosis: 'Uncomplicated Plasmodium Falciparum Malaria',
+    matchScore: 95,
+    matchReasons: ['Identical Hospital Card #', 'Same Attendance Date', 'Duplicate Triage Time Entry (08:14 vs 08:16)'],
+    disposition: 'Unresolved',
+    reviewNotes: 'Records show split entry across triage registry desk. Possible duplicate tally or rapid repeat consultation.'
+  },
+  {
+    id: 'DUP-002',
+    primaryEncounterId: 'ENC-2023-0111',
+    suspectEncounterId: 'ENC-2023-0148',
+    hospitalCardNo: 'LUTH/2023/10111',
+    patientNameOrAlias: 'Patient #1111',
+    datePrimary: '2023-02-20',
+    dateSuspect: '2023-02-22',
+    department: 'Cardiology & Hypertension Clinic',
+    diagnosis: 'Essential Hypertension (Stage 1 / 2)',
+    matchScore: 82,
+    matchReasons: ['Same Hospital Card #', 'Attendance within 48 hours', 'Follow-up lab repeat'],
+    disposition: 'Genuine Repeat Encounter',
+    reviewNotes: 'Confirmed genuine repeat: Patient instructed to return 48 hours post-initiation for BP re-assessment. Retained in analysis.',
+    reviewedBy: 'A. Bello (Records Custodian)',
+    reviewedAt: '2026-10-16 11:20:00'
+  },
+  {
+    id: 'DUP-003',
+    primaryEncounterId: 'ENC-2023-0222',
+    suspectEncounterId: 'ENC-2023-0259',
+    hospitalCardNo: 'AKTH/2023/10222',
+    patientNameOrAlias: 'Patient #1222',
+    datePrimary: '2023-04-10',
+    dateSuspect: '2023-04-10',
+    department: 'Pediatrics Outpatient (POPD)',
+    diagnosis: 'Community-Acquired Bronchopneumonia',
+    matchScore: 98,
+    matchReasons: ['Exact Match Card Number', 'Duplicate Paper Folder Suffix (-DUP)', 'Identical Vitals Entry'],
+    disposition: 'Confirmed Duplicate',
+    reviewNotes: 'Confirmed paper registry duplication due to manual clerical tally sheet copy. Second entry flagged as non-eligible encounter.',
+    reviewedBy: 'Dr. D. Kalango',
+    reviewedAt: '2026-10-18 09:45:00'
+  },
+  {
+    id: 'DUP-004',
+    primaryEncounterId: 'ENC-2023-0333',
+    suspectEncounterId: 'ENC-2023-0370',
+    hospitalCardNo: 'FMC/2023/10333',
+    patientNameOrAlias: 'Patient #1333',
+    datePrimary: '2023-06-12',
+    dateSuspect: '2023-06-14',
+    department: 'General Outpatient (GOPD)',
+    diagnosis: 'Acute Gastroenteritis & Dehydration',
+    matchScore: 78,
+    matchReasons: ['Same Patient Hospital ID', 'Presentation within 48h window', 'Escalation from GOPD to Day Ward'],
+    disposition: 'Genuine Repeat Encounter',
+    reviewNotes: 'Persistent emesis requiring IV rehydration return visit. Verified as valid clinical encounter.',
+    reviewedBy: 'C. Okon (Supervisor)',
+    reviewedAt: '2026-10-20 14:10:00'
+  },
+  {
+    id: 'DUP-005',
+    primaryEncounterId: 'ENC-2023-0444',
+    suspectEncounterId: 'ENC-2023-0481',
+    hospitalCardNo: 'NHA/2023/10444',
+    patientNameOrAlias: 'Patient #1444',
+    datePrimary: '2023-07-24',
+    dateSuspect: '2023-07-24',
+    department: 'General Surgery Clinic',
+    diagnosis: 'Road Traffic Injury (Commercial Motorcycle)',
+    matchScore: 91,
+    matchReasons: ['Identical Card Number', 'Same Date', 'Triage Station duplicate ticket'],
+    disposition: 'Unresolved',
+    reviewNotes: 'Awaiting clinical notes from casualty surgery triage.'
+  },
+  {
+    id: 'DUP-006',
+    primaryEncounterId: 'ENC-2023-0555',
+    suspectEncounterId: 'ENC-2023-0592',
+    hospitalCardNo: 'UCH/2023/10555',
+    patientNameOrAlias: 'Patient #1555',
+    datePrimary: '2023-09-18',
+    dateSuspect: '2023-09-18',
+    department: 'Obstetrics & Gynaecology (ANC/OPD)',
+    diagnosis: 'Antenatal Routine OPD Supervision & Triage',
+    matchScore: 65,
+    matchReasons: ['Matching Mother ID', 'Same Routine ANC Clinic'],
+    disposition: 'Documented Exception',
+    reviewNotes: 'Morning booking followed by ultrasound review in afternoon session. Documented as single composite clinic event.',
+    reviewedBy: 'A. Bello (Records Custodian)',
+    reviewedAt: '2026-10-22 16:30:00'
+  }
+];
+
+export const INITIAL_SYSTEM_USERS: import('../types/hospital').SystemUser[] = [
+  {
+    uid: 'USR-ADMIN-01',
+    email: 'admin.paas@fmoh.gov.ng',
+    displayName: 'Engr. T. Balogun',
+    role: 'Administrator',
+    facilityAffiliation: 'Federal Ministry of Health (DPRS Directorate)',
+    isActive: true,
+    createdAt: '2026-01-10 09:00:00',
+    lastLoginAt: '2026-10-28 07:15:00'
+  },
+  {
+    uid: 'USR-ANALYST-01',
+    email: 'destinykalango@gmail.com',
+    displayName: 'Dr. D. Kalango, MBBS, FWACP',
+    role: 'Data Analyst / Researcher',
+    facilityAffiliation: 'University College Hospital (UCH) Ibadan',
+    isActive: true,
+    createdAt: '2026-01-15 10:30:00',
+    lastLoginAt: '2026-10-28 08:00:00'
+  },
+  {
+    uid: 'USR-CUSTODIAN-01',
+    email: 'custodian.bello@uch-ibadan.org.ng',
+    displayName: 'Amina Bello, HND Health Info',
+    role: 'Records / Data Custodian',
+    facilityAffiliation: 'UCH Ibadan Health Records Department',
+    isActive: true,
+    createdAt: '2026-02-01 11:00:00',
+    lastLoginAt: '2026-10-27 15:45:00'
+  },
+  {
+    uid: 'USR-SUPERVISOR-01',
+    email: 'prof.okon@unth.edu.ng',
+    displayName: 'Prof. C. Okon, FMCPH',
+    role: 'Supervisor / Authorised Reviewer',
+    facilityAffiliation: 'National Postgraduate Medical College of Nigeria',
+    isActive: true,
+    createdAt: '2026-01-20 08:00:00',
+    lastLoginAt: '2026-10-25 12:20:00'
+  },
+  {
+    uid: 'USR-MANAGER-01',
+    email: 'cmd.office@luth.gov.ng',
+    displayName: 'Dr. K. Adeleke (CMD Representative)',
+    role: 'Hospital Manager / Stakeholder',
+    facilityAffiliation: 'LUTH Idi-Araba Management Board',
+    isActive: true,
+    createdAt: '2026-03-01 14:00:00',
+    lastLoginAt: '2026-10-26 16:10:00'
+  }
+];
+
+export const INITIAL_AUDIT_LOGS: import('../types/hospital').AuditEvent[] = [
+  {
+    id: 'AUD-901',
+    timestamp: '2026-10-28 07:30:14 UTC',
+    userId: 'USR-ANALYST-01',
+    userName: 'Dr. D. Kalango',
+    userRole: 'Data Analyst / Researcher',
+    action: 'DATASET_IMPORT',
+    summary: 'Loaded working copy of Nigerian Public Tertiary Outpatient Attendance Registry 2023 (SHA-256 e3b0c442...)',
+    metadata: { recordsImported: 720, workingCopyPreserved: true }
+  },
+  {
+    id: 'AUD-902',
+    timestamp: '2026-10-28 07:32:00 UTC',
+    userId: 'USR-ANALYST-01',
+    userName: 'Dr. D. Kalango',
+    userRole: 'Data Analyst / Researcher',
+    action: 'CLEANING_RULE_APPLIED',
+    summary: 'Activated 5 automated normalization rules (ICD-10 taxonomy, decimal outlier truncation, date parsing)',
+    metadata: { rulesCount: 5, anomaliesRectified: 42 }
+  },
+  {
+    id: 'AUD-903',
+    timestamp: '2026-10-28 07:45:10 UTC',
+    userId: 'USR-CUSTODIAN-01',
+    userName: 'Amina Bello',
+    userRole: 'Records / Data Custodian',
+    action: 'DUPLICATE_DISPOSITION_SET',
+    summary: 'Reviewed suspect encounter ENC-2023-0111: classified as Genuine Repeat Encounter (48h follow-up)',
+    metadata: { duplicateId: 'DUP-002', disposition: 'Genuine Repeat Encounter' }
+  },
+  {
+    id: 'AUD-904',
+    timestamp: '2026-10-28 07:50:33 UTC',
+    userId: 'USR-ANALYST-01',
+    userName: 'Dr. D. Kalango',
+    userRole: 'Data Analyst / Researcher',
+    action: 'STATISTICAL_TEST_EXECUTED',
+    summary: 'Executed Chi-Square Test of Independence: diseaseCategory vs gender (chiSquare=42.18, p<0.001)',
+    metadata: { test: 'Chi-Square', cramersV: 0.24, alpha: 0.05 }
+  }
+];
+
+export const INITIAL_ANALYSIS_HISTORY: import('../types/hospital').AnalysisRunRecord[] = [
+  {
+    runId: 'RUN-2026-10-01',
+    timestamp: '2026-10-28 07:55:00 UTC',
+    datasetVersion: '1.2.0 (Verified Working Copy)',
+    datasetHash: 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855',
+    analystName: 'Dr. D. Kalango',
+    parameters: {
+      filters: { facility: 'all', season: 'all', department: 'all' },
+      cleaningRulesActive: ['rule-date-season', 'rule-taxonomy-icd', 'rule-vitals-outliers', 'rule-missing-imputation', 'rule-deduplication'],
+      significanceAlpha: 0.05,
+      statisticalTestUsed: 'Chi-Square Test of Independence'
+    },
+    sampleSizeAnalyzed: 720,
+    keyFindingsSummary: 'Demonstrated bimodal monsoon malaria spike (June-July, 2.4x) and Monday morning queue bottleneck (mean wait 184 mins vs 48 mins midweek).'
+  }
+];

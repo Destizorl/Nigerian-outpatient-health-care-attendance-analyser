@@ -15,6 +15,7 @@ import {
 } from 'firebase/auth';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { auth, db, googleProvider, handleFirestoreError, OperationType, testFirestoreConnection } from '../lib/firebase';
+import { UserRole } from '../types/hospital';
 
 export interface UserProfile {
   uid: string;
@@ -28,6 +29,8 @@ export interface UserProfile {
 interface AuthContextType {
   user: User | null;
   userProfile: UserProfile | null;
+  currentRole: UserRole;
+  setCurrentRole: (role: UserRole) => void;
   loading: boolean;
   lockoutRemainingSeconds: number;
   signUpWithEmail: (email: string, pass: string, name: string, role: UserProfile['role'], facility: string) => Promise<void>;
@@ -45,6 +48,7 @@ const LOCKOUT_DURATION_MS = 60000; // 60 seconds
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
+  const [currentRole, setCurrentRole] = useState<UserRole>('Data Analyst / Researcher');
   const [loading, setLoading] = useState<boolean>(true);
 
   // Rate Limiting & Brute Force Defense
@@ -211,6 +215,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     <AuthContext.Provider value={{
       user,
       userProfile,
+      currentRole,
+      setCurrentRole,
       loading,
       lockoutRemainingSeconds,
       signUpWithEmail,

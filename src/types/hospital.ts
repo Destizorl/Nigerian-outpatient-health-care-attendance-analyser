@@ -1,6 +1,6 @@
 /**
- * Data structures and domain models for Nigerian Public Hospital OPD Analytics
- * Aligned with OODM (Object-Oriented Data Modeling) principles.
+ * Patient Attendance Analysis System (PAAS)
+ * Data structures, statistical models, RBAC, and audit schemas for Nigerian Public Hospitals.
  */
 
 export type SeasonType = 'Rainy' | 'Harmattan' | 'LateDryTransition';
@@ -13,7 +13,22 @@ export type GeopoliticalZone =
   | 'South East' 
   | 'South South';
 
-export type HospitalLevel = 'Tertiary Teaching Hospital' | 'Federal Medical Centre' | 'State Specialist General Hospital';
+export type HospitalLevel = 
+  | 'Tertiary Teaching Hospital' 
+  | 'Federal Medical Centre' 
+  | 'State Specialist General Hospital';
+
+export type DepartmentType = 
+  | 'General Outpatient (GOPD)'
+  | 'Pediatrics Outpatient (POPD)'
+  | 'Obstetrics & Gynaecology (ANC/OPD)'
+  | 'Internal Medicine Specialty'
+  | 'Accident & Emergency Triage'
+  | 'General Surgery Clinic'
+  | 'Cardiology & Hypertension Clinic'
+  | 'Endocrine & Metabolic Clinic'
+  | 'Ophthalmology Clinic'
+  | 'Dermatology Clinic';
 
 export interface HospitalFacility {
   id: string;
@@ -40,7 +55,7 @@ export type AgeCohort =
   | 'Mature Adult (50-64y)'
   | 'Elderly (65+y)';
 
-export type Gender = 'Female' | 'Male';
+export type Gender = 'Female' | 'Male' | 'Unrecorded';
 
 export type TriageAcuity = 
   | 'Resuscitation (Red)'
@@ -87,7 +102,7 @@ export interface TriageVitals {
 }
 
 /**
- * Standard Cleaned OPD Encounter Record
+ * Standard Cleaned OPD Encounter Record (Working Copy)
  */
 export interface CleanOPDRecord {
   encounterId: string;
@@ -96,9 +111,12 @@ export interface CleanOPDRecord {
   facilityId: string;
   facilityName: string;
   zone: GeopoliticalZone;
+  department: DepartmentType;
   date: string; // YYYY-MM-DD
   month: number; // 1-12
   monthName: string;
+  quarter: 'Q1' | 'Q2' | 'Q3' | 'Q4';
+  year: number;
   dayOfWeek: 'Monday' | 'Tuesday' | 'Wednesday' | 'Thursday' | 'Friday' | 'Saturday' | 'Sunday';
   timeOfArrival: string; // HH:mm
   season: SeasonType;
@@ -124,31 +142,35 @@ export interface CleanOPDRecord {
   doctorCadre: 'Consultant Physician' | 'Senior Registrar' | 'Medical Officer' | 'House Officer';
   disposition: DispositionType;
   prescriptionGiven: boolean;
+
+  // Inclusion/Exclusion status for analytical reproducibility
+  isEligible: boolean;
+  exclusionReason?: string;
 }
 
 /**
- * Raw Messy Record representing real-world Nigerian public hospital registry
+ * Raw Record representing uploaded or source registry
  */
 export interface RawMessyOPDRecord {
   record_id: string;
-  raw_date: string; // E.g., '14/06/2023', '2023/06/14', 'June 14', '14-06-23'
+  raw_date: string;
   hospital_card_no: string;
   facility_code: string;
+  department_raw?: string;
   patient_name_or_alias: string;
-  raw_age: string | number; // E.g., 34, "34 yrs", "5mths", 340 (typo), null
-  gender_raw: string; // 'M', 'F', 'female', 'male', 'FEMALE', ''
-  nhis_status_raw: string; // 'YES', 'NO', 'NHIS', 'cash', 'Out of pocket', 'NIL', '?', null
-  triage_temp_raw: string | number; // '37.4', '384' (omitted decimal), 'normal', 'hot'
-  bp_raw: string; // '120/80', '140/90 mmHg', 'high', 'null', '180/110'
+  raw_age: string | number;
+  gender_raw: string;
+  nhis_status_raw: string;
+  triage_temp_raw: string | number;
+  bp_raw: string;
   symptoms_raw: string;
-  diagnosis_raw: string; // 'Malaria ++', 'P. falciparum', 'MP positive', 'Malaria fever', 'HTN', 'Typhoid fev'
+  diagnosis_raw: string;
   lab_raw: string;
   time_in_raw: string;
   time_seen_raw: string;
   duration_raw: string;
   disposition_raw: string;
   
-  // Identified flaws for educational visualization
   anomaliesDetected: {
     field: string;
     issueType: 'format' | 'typo_alias' | 'outlier' | 'missing' | 'duplicate';
@@ -159,19 +181,179 @@ export interface RawMessyOPDRecord {
 }
 
 /**
+ * Duplicate Review Disposition
+ */
+export type DuplicateDisposition = 
+  | 'Unresolved'
+  | 'Confirmed Duplicate'
+  | 'Genuine Repeat Encounter'
+  | 'Documented Exception';
+
+export interface DuplicateFlaggedItem {
+  id: string;
+  primaryEncounterId: string;
+  suspectEncounterId: string;
+  hospitalCardNo: string;
+  patientNameOrAlias: string;
+  datePrimary: string;
+  dateSuspect: string;
+  department: string;
+  diagnosis: string;
+  matchScore: number;
+  matchReasons: string[];
+  disposition: DuplicateDisposition;
+  reviewNotes: string;
+  reviewedBy?: string;
+  reviewedAt?: string;
+}
+
+/**
  * Cleaning Rule Definition
  */
 export interface CleaningRule {
   id: string;
   title: string;
   description: string;
-  category: 'Date & Season' | 'Diagnosis Taxonomy' | 'Outliers & Vitals' | 'Missing Values' | 'Deduplication';
+  category: 'Date & Season' | 'Diagnosis Taxonomy' | 'Outliers & Vitals' | 'Missing Values' | 'Deduplication' | 'Eligibility';
   enabled: boolean;
   affectedCount: number;
+  ruleParameters?: Record<string, any>;
 }
 
 /**
- * OODM Class Spec for interactive modeling
+ * Dataset Version & Provenance Specification
+ */
+export interface DatasetProvenance {
+  datasetId: string;
+  version: string;
+  title: string;
+  facilityScope: string;
+  sourceDescription: string;
+  fileType: 'CSV' | 'XLSX' | 'SYNTHETIC';
+  sha256Checksum: string;
+  importedAt: string;
+  importedBy: string;
+  totalRecordsCount: number;
+  eligibleCount: number;
+  excludedCount: number;
+  flaggedDuplicateCount: number;
+  isSyntheticDemo: boolean;
+  dateRange: { start: string; end: string };
+}
+
+/**
+ * User Roles with strict hierarchical and functional authorization
+ */
+export type UserRole = 
+  | 'Administrator'
+  | 'Data Analyst / Researcher'
+  | 'Records / Data Custodian'
+  | 'Supervisor / Authorised Reviewer'
+  | 'Hospital Manager / Stakeholder';
+
+export interface SystemUser {
+  uid: string;
+  email: string;
+  displayName: string;
+  role: UserRole;
+  facilityAffiliation: string;
+  isActive: boolean;
+  createdAt: string;
+  lastLoginAt: string;
+}
+
+/**
+ * Audit Event Log Record
+ */
+export interface AuditEvent {
+  id: string;
+  timestamp: string;
+  userId: string;
+  userName: string;
+  userRole: UserRole;
+  action: 
+    | 'DATASET_IMPORT'
+    | 'DATASET_SWITCH'
+    | 'CLEANING_RULE_APPLIED'
+    | 'DUPLICATE_DISPOSITION_SET'
+    | 'STATISTICAL_TEST_EXECUTED'
+    | 'REPORT_EXPORTED_PDF'
+    | 'REPORT_EXPORTED_XLSX'
+    | 'REPORT_EXPORTED_CSV'
+    | 'USER_ROLE_MODIFIED'
+    | 'ANALYSIS_REPRODUCED';
+  summary: string;
+  metadata?: Record<string, any>;
+}
+
+/**
+ * Analysis Run for History & Reproducibility
+ */
+export interface AnalysisRunRecord {
+  runId: string;
+  timestamp: string;
+  datasetVersion: string;
+  datasetHash: string;
+  analystName: string;
+  parameters: {
+    filters: Record<string, any>;
+    cleaningRulesActive: string[];
+    significanceAlpha: number;
+    statisticalTestUsed?: string;
+  };
+  sampleSizeAnalyzed: number;
+  keyFindingsSummary: string;
+}
+
+/**
+ * Inferential Statistical Test Results
+ */
+export interface ChiSquareTestResult {
+  testName: 'Chi-Square Test of Independence';
+  variableX: string;
+  variableY: string;
+  researchQuestion: string;
+  nullHypothesis: string;
+  altHypothesis: string;
+  alpha: number;
+  contingencyTable: {
+    rows: string[];
+    cols: string[];
+    observed: number[][];
+    expected: number[][];
+    rowTotals: number[];
+    colTotals: number[];
+    grandTotal: number;
+  };
+  chiSquareStat: number;
+  degreesOfFreedom: number;
+  pValue: number;
+  isStatisticallySignificant: boolean;
+  cramersV: number;
+  effectSizeInterpretation: 'Negligible' | 'Small' | 'Medium' | 'Large';
+  cochransAssumptionMet: boolean;
+  cellsUnder5ExpectedCount: number;
+  cellsUnder5Percentage: number;
+  plainLanguageInterpretation: string;
+  methodologicalLimitations: string;
+}
+
+export interface DescriptiveSummaryResult {
+  variableName: string;
+  sampleSizeN: number;
+  missingCount: number;
+  missingPercentage: number;
+  mean?: number;
+  stdDev?: number;
+  median?: number;
+  iqr?: number;
+  min?: number;
+  max?: number;
+  frequencies?: { category: string; count: number; percentage: number }[];
+}
+
+/**
+ * OODM Class Spec for architecture visualization
  */
 export interface OODMClassDefinition {
   id: string;
